@@ -18,10 +18,23 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 app.use(cors()); // Enables Cross-Origin Resource Sharing for all origins (for development)
 app.use(express.json()); // Parses incoming JSON requests
 
+// Add a simple logger for all incoming requests to help debug routing
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] Incoming request: ${req.method} ${req.url}`);
+  next(); // Pass the request to the next middleware or route handler
+});
+
 // POST endpoint to handle requests to the Gemini API
 app.post("/ask-gemini", async (req, res) => {
+  console.log(`[${new Date().toISOString()}] /ask-gemini route hit! Attempting to call Gemini.`);
+  if (!GEMINI_API_KEY) {
+    console.error("GEMINI_API_KEY is NOT set in environment variables!");
+    return res.status(500).json({ error: "Server configuration error: Gemini API Key missing." });
+  }
+
   try {
     const body = req.body; // The request body contains the chat history and generation config from the frontend
+    console.log(`[${new Date().toISOString()}] Request body received for Gemini:`, JSON.stringify(body, null, 2));
 
     // Make a fetch call to the Google Generative Language API
     // Ensure GEMINI_API_KEY is correctly set in Render's environment variables
@@ -36,27 +49,14 @@ app.post("/ask-gemini", async (req, res) => {
 
     // Parse the JSON response from the Gemini API
     const data = await response.json();
+    console.log(`[${new Date().toISOString()}] Gemini API response received.`);
 
     // Send the data received from the Gemini API back to the frontend
     res.json(data);
   } catch (error) {
     // Log the error for debugging purposes on the server side
-    console.error("Error in /ask-gemini endpoint:", error);
+    console.error(`[${new Date().toISOString()}] Error in /ask-gemini endpoint:`, error);
     // Send a 500 status code and an error message back to the frontend
     res.status(500).json({ error: "Failed to communicate with AI.", details: error.message });
-  }
-});
-
-// Basic GET endpoint for health check or verification that the backend is running
-app.get("/", (req, res) => {
-  res.send("Gemini Backend is running!");
-});
-
-// Start the server and listen for incoming requests
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  // You might want to add a check here to ensure GEMINI_API_KEY is defined
-  if (!GEMINI_API_KEY) {
-    console.warn("WARNING: GEMINI_API_KEY is not set! AI functionality will fail.");
   }
 });
